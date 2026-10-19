@@ -137,7 +137,7 @@
                     <i class="fa-solid fa-utensils"></i> เมนูอาหาร
                 </button>
                 <button onclick="switchCustomerTab('orders')" id="custTabOrders" class="py-2.5 px-4 text-sm font-semibold border-b-2 border-transparent text-gray-400 hover:text-gray-600 flex items-center gap-2 relative">
-                    <i class="fa-solid fa-clock-rotate-left"></i> รายการที่สั่งแล้ว
+                    <i class="fa-solid fa-clock-rotate-left"></i> รายการที่กำลังทำ
                 </button>
             </div>
 
@@ -265,14 +265,9 @@
     <script>
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz-JnN-E2YAaQK83tsro_PK0yX7IxM98Oa9NXgJi9TClnEO1_qqI6BIQIT68DwNNYWE/exec";
         
-        const defaultMenu = [
-            { id: "1", name: "ข้าวกะเพราหมูกรอบ", price: 60, category: "อาหารจานเดียว", image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=300" },
-            { id: "2", name: "ต้มยำกุ้งน้ำข้น", price: 150, category: "กับข้าว", image: "https://images.unsplash.com/photo-1548946526-f69e2424cf45?w=300" }
-        ];
-
         let currentTable = 1;
         let isAdmin = false;
-        let menuItems = JSON.parse(localStorage.getItem('restaurant_menu')) || defaultMenu;
+        let menuItems = JSON.parse(localStorage.getItem('restaurant_menu')) || [];
         let totalTables = parseInt(localStorage.getItem('restaurant_tables')) || 3;
         let orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
         let previousOrderCount = orders.length;
@@ -304,7 +299,8 @@
             renderCustomerMenu();
             renderCustomerOrders();
 
-            setInterval(checkNewOrders, 5000);
+            // Auto-refresh เช็คออเดอร์จากระบบทุกๆ 4 วินาที
+            setInterval(refreshData, 4000);
         };
 
         function playSoundNotification() {
@@ -331,21 +327,6 @@
             setTimeout(() => { toast.classList.add('hidden'); }, 4000);
         }
 
-        function checkNewOrders() {
-            const latestOrders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
-            if (latestOrders.length > previousOrderCount) {
-                const newOrder = latestOrders[latestOrders.length - 1];
-                if (isAdmin) triggerNotification(newOrder.table);
-                orders = latestOrders;
-                previousOrderCount = orders.length;
-                renderAdminOrders();
-                renderTableGrid();
-            } else {
-                orders = latestOrders;
-                previousOrderCount = orders.length;
-            }
-        }
-
         function fetchMenuFromSheets() {
             if (!GOOGLE_SCRIPT_URL) return;
             fetch(GOOGLE_SCRIPT_URL)
@@ -354,18 +335,11 @@
                     if (Array.isArray(data) && data.length > 0) {
                         menuItems = data;
                         localStorage.setItem('restaurant_menu', JSON.stringify(menuItems));
-                    } else if (menuItems.length === 0) {
-                        menuItems = defaultMenu;
                     }
                     renderMenuList();
                     renderCustomerMenu();
                 })
-                .catch(err => {
-                    console.log('Fetch Menu Error:', err);
-                    if (menuItems.length === 0) menuItems = defaultMenu;
-                    renderMenuList();
-                    renderCustomerMenu();
-                });
+                .catch(err => console.log('Fetch Menu Error:', err));
         }
 
         function syncMenuToSheets() {
@@ -411,8 +385,12 @@
         }
 
         function refreshData() {
-            fetchMenuFromSheets();
             orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
+            if (orders.length > previousOrderCount) {
+                const newOrder = orders[orders.length - 1];
+                if (isAdmin) triggerNotification(newOrder.table);
+                previousOrderCount = orders.length;
+            }
             renderAdminOrders();
             renderCustomerOrders();
             renderTableGrid();
@@ -480,13 +458,11 @@
             const image = document.getElementById('menuImage').value || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300';
 
             if (editId) {
-                // กรณีแก้ไขเมนูเดิม
                 const index = menuItems.findIndex(m => String(m.id) === String(editId));
                 if (index !== -1) {
                     menuItems[index] = { id: editId, name, price, category, image };
                 }
             } else {
-                // กรณีเพิ่มเมนูใหม่
                 const newItem = { id: Date.now().toString(), name, price, category, image };
                 menuItems.push(newItem);
             }
@@ -784,14 +760,15 @@
             }
         }
 
+        // แสดงเฉพาะรายการที่ยังไม่ได้ทำเสร็จในฝั่งลูกค้า
         function renderCustomerOrders() {
             const container = document.getElementById('customerOrdersList');
             container.innerHTML = '';
 
-            const myOrders = orders.filter(o => o.table === currentTable);
+            const myOrders = orders.filter(o => o.table === currentTable && o.status !== 'completed');
 
             if (myOrders.length === 0) {
-                container.innerHTML = `<div class="bg-white p-8 rounded-2xl text-center text-gray-400 text-xs">ยังไม่มีรายการอาหารที่สั่งในโต๊ะนี้</div>`;
+                container.innerHTML = `<div class="bg-white p-8 rounded-2xl text-center text-gray-400 text-xs">ไม่มีรายการอาหารที่กำลังรอดำเนินการในโต๊ะนี้</div>`;
                 return;
             }
 
@@ -804,9 +781,6 @@
 
                 if (order.status === 'cooking') {
                     statusBadge = `<span class="text-blue-600 text-xs font-bold"><i class="fa-solid fa-fire"></i> ร้านกำลังทำอาหาร (ยกเลิกไม่ได้)</span>`;
-                    cancelBtn = '';
-                } else if (order.status === 'completed') {
-                    statusBadge = `<span class="text-emerald-600 text-xs font-bold"><i class="fa-solid fa-circle-check"></i> ทำเสร็จแล้ว</span>`;
                     cancelBtn = '';
                 }
 
