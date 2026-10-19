@@ -261,7 +261,7 @@
     </div>
 
     <script>
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_Placeholder_For_Deployment/exec";
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz-JnN-E2YAaQK83tsro_PK0yX7IxM98Oa9NXgJi9TClnEO1_qqI6BIQIT68DwNNYWE/exec";
         
         let currentTable = 1;
         let isAdmin = false;
@@ -297,7 +297,6 @@
             renderCustomerMenu();
             renderCustomerOrders();
 
-            // เช็คออเดอร์ใหม่และเล่นเสียงเตือนทุกๆ 5 วินาที สำหรับฝั่งเจ้าของร้าน
             setInterval(checkNewOrders, 5000);
         };
 
@@ -341,7 +340,7 @@
         }
 
         function fetchMenuFromSheets() {
-            if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("Placeholder")) return;
+            if (!GOOGLE_SCRIPT_URL) return;
             fetch(GOOGLE_SCRIPT_URL)
                 .then(res => res.json())
                 .then(data => {
@@ -356,7 +355,7 @@
         }
 
         function syncMenuToSheets() {
-            if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("Placeholder")) return;
+            if (!GOOGLE_SCRIPT_URL) return;
             fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -781,7 +780,7 @@
         }
 
         function saveOrderToGoogleSheets(orderData) {
-            if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("Placeholder")) return;
+            if (!GOOGLE_SCRIPT_URL) return;
             const payload = {
                 id: orderData.id,
                 table: orderData.table,
