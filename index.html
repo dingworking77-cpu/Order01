@@ -190,13 +190,15 @@
         </div>
     </div>
 
+    <!-- Modal เพิ่ม/แก้ไข เมนูอาหาร -->
     <div id="addMenuModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-md rounded-2xl p-5 space-y-4">
             <div class="flex justify-between items-center border-b pb-2">
-                <h3 class="font-bold text-gray-800"><i class="fa-solid fa-utensils text-orange-500"></i> เพิ่มรายการอาหารใหม่</h3>
+                <h3 id="menuModalTitle" class="font-bold text-gray-800"><i class="fa-solid fa-utensils text-orange-500"></i> เพิ่มรายการอาหารใหม่</h3>
                 <button onclick="closeAddMenuModal()" class="text-gray-400"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             <form id="addMenuForm" onsubmit="saveMenuItem(event)" class="space-y-3">
+                <input type="hidden" id="editMenuId" value="">
                 <div>
                     <label class="text-xs font-semibold text-gray-600">ชื่อเมนูอาหาร</label>
                     <input type="text" id="menuName" required class="w-full mt-1 border rounded-xl p-2.5 text-sm focus:outline-none focus:border-orange-500" placeholder="เช่น ข้าวกะเพราหมูกรอบ">
@@ -221,7 +223,7 @@
                     <input type="url" id="menuImage" class="w-full mt-1 border rounded-xl p-2.5 text-sm focus:outline-none focus:border-orange-500" placeholder="https://example.com/image.jpg">
                 </div>
                 <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl font-bold text-sm transition">
-                    บันทึกเมนูอาหาร
+                    บันทึกข้อมูล
                 </button>
             </form>
         </div>
@@ -250,7 +252,7 @@
                 <button onclick="closeTableModal()" class="text-gray-400"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             <div class="flex justify-between items-center pt-2">
-                <span class="text-xs font-semibold text-gray-600">จำนวนโต๊ะทั้งหมด: <b id="tableCountText">6</b> โต๊ะ</span>
+                <span class="text-xs font-semibold text-gray-600">จำนวนโต๊ะทั้งหมด: <b id="tableCountText">3</b> โต๊ะ</span>
                 <div class="flex space-x-1">
                     <button onclick="adjustTableCount(-1)" class="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-bold text-xs">- ลบโต๊ะ</button>
                     <button onclick="adjustTableCount(1)" class="px-2.5 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold text-xs">+ เพิ่มโต๊ะ</button>
@@ -263,10 +265,15 @@
     <script>
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz-JnN-E2YAaQK83tsro_PK0yX7IxM98Oa9NXgJi9TClnEO1_qqI6BIQIT68DwNNYWE/exec";
         
+        const defaultMenu = [
+            { id: "1", name: "ข้าวกะเพราหมูกรอบ", price: 60, category: "อาหารจานเดียว", image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=300" },
+            { id: "2", name: "ต้มยำกุ้งน้ำข้น", price: 150, category: "กับข้าว", image: "https://images.unsplash.com/photo-1548946526-f69e2424cf45?w=300" }
+        ];
+
         let currentTable = 1;
         let isAdmin = false;
-        let menuItems = JSON.parse(localStorage.getItem('restaurant_menu')) || [];
-        let totalTables = parseInt(localStorage.getItem('restaurant_tables')) || 6;
+        let menuItems = JSON.parse(localStorage.getItem('restaurant_menu')) || defaultMenu;
+        let totalTables = parseInt(localStorage.getItem('restaurant_tables')) || 3;
         let orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
         let previousOrderCount = orders.length;
         let cart = [];
@@ -344,14 +351,21 @@
             fetch(GOOGLE_SCRIPT_URL)
                 .then(res => res.json())
                 .then(data => {
-                    if (Array.isArray(data)) {
+                    if (Array.isArray(data) && data.length > 0) {
                         menuItems = data;
                         localStorage.setItem('restaurant_menu', JSON.stringify(menuItems));
-                        renderMenuList();
-                        renderCustomerMenu();
+                    } else if (menuItems.length === 0) {
+                        menuItems = defaultMenu;
                     }
+                    renderMenuList();
+                    renderCustomerMenu();
                 })
-                .catch(err => console.log('Fetch Menu Error:', err));
+                .catch(err => {
+                    console.log('Fetch Menu Error:', err);
+                    if (menuItems.length === 0) menuItems = defaultMenu;
+                    renderMenuList();
+                    renderCustomerMenu();
+                });
         }
 
         function syncMenuToSheets() {
@@ -422,28 +436,62 @@
                             <p class="text-[10px] text-gray-500">฿${item.price} • ${item.category}</p>
                         </div>
                     </div>
-                    <button onclick="promptDeleteMenu('${item.id}')" class="p-2 text-gray-400 hover:text-red-500 transition flex-shrink-0">
-                        <i class="fa-solid fa-trash text-sm"></i>
-                    </button>
+                    <div class="flex space-x-1 flex-shrink-0">
+                        <button onclick="editMenuItem('${item.id}')" class="p-2 text-gray-400 hover:text-orange-500 transition">
+                            <i class="fa-solid fa-pen-to-square text-sm"></i>
+                        </button>
+                        <button onclick="promptDeleteMenu('${item.id}')" class="p-2 text-gray-400 hover:text-red-500 transition">
+                            <i class="fa-solid fa-trash text-sm"></i>
+                        </button>
+                    </div>
                 `;
                 container.appendChild(div);
             });
         }
 
-        function openAddMenuModal() { document.getElementById('addMenuModal').classList.remove('hidden'); }
+        function openAddMenuModal() {
+            document.getElementById('editMenuId').value = "";
+            document.getElementById('menuModalTitle').innerHTML = `<i class="fa-solid fa-utensils text-orange-500"></i> เพิ่มรายการอาหารใหม่`;
+            document.getElementById('addMenuForm').reset();
+            document.getElementById('addMenuModal').classList.remove('hidden');
+        }
+
+        function editMenuItem(id) {
+            const item = menuItems.find(m => String(m.id) === String(id));
+            if (!item) return;
+
+            document.getElementById('editMenuId').value = item.id;
+            document.getElementById('menuName').value = item.name;
+            document.getElementById('menuPrice').value = item.price;
+            document.getElementById('menuCategory').value = item.category;
+            document.getElementById('menuImage').value = item.image || "";
+            document.getElementById('menuModalTitle').innerHTML = `<i class="fa-solid fa-pen-to-square text-orange-500"></i> แก้ไขรายการอาหาร`;
+            document.getElementById('addMenuModal').classList.remove('hidden');
+        }
+
         function closeAddMenuModal() { document.getElementById('addMenuModal').classList.add('hidden'); }
 
         function saveMenuItem(e) {
             e.preventDefault();
+            const editId = document.getElementById('editMenuId').value;
             const name = document.getElementById('menuName').value;
             const price = parseFloat(document.getElementById('menuPrice').value);
             const category = document.getElementById('menuCategory').value;
             const image = document.getElementById('menuImage').value || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300';
 
-            const newItem = { id: Date.now().toString(), name, price, category, image };
-            menuItems.push(newItem);
-            localStorage.setItem('restaurant_menu', JSON.stringify(menuItems));
+            if (editId) {
+                // กรณีแก้ไขเมนูเดิม
+                const index = menuItems.findIndex(m => String(m.id) === String(editId));
+                if (index !== -1) {
+                    menuItems[index] = { id: editId, name, price, category, image };
+                }
+            } else {
+                // กรณีเพิ่มเมนูใหม่
+                const newItem = { id: Date.now().toString(), name, price, category, image };
+                menuItems.push(newItem);
+            }
 
+            localStorage.setItem('restaurant_menu', JSON.stringify(menuItems));
             syncMenuToSheets();
             renderMenuList();
             renderCustomerMenu();
