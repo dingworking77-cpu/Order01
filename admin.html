@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แผงควบคุมเจ้าของร้าน</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap'); * { font-family: 'Kanit', sans-serif; }</style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen p-4 max-w-4xl mx-auto space-y-6">
+    <div class="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
+        <div>
+            <h1 class="font-bold text-lg"><i class="fa-solid fa-store text-orange-500"></i> แผงควบคุมเจ้าของร้าน</h1>
+            <p class="text-xs text-gray-400">ระบบจัดการออเดอร์และเมนูอาหาร</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="https://docs.google.com/spreadsheets/d/1oJMvQwIpAb9icpnFrqtRxJsRbuxiylB3LIZwVzgQHPA/edit" target="_blank" class="px-3 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-semibold">ดู Google Sheets</a>
+            <button onclick="openAddMenuModal()" class="px-3 py-2 bg-orange-500 text-white rounded-xl text-xs font-semibold">+ เพิ่มเมนู</button>
+        </div>
+    </div>
+
+    <!-- รายการออเดอร์ -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm space-y-4">
+        <h3 class="font-bold text-sm">รายการออเดอร์เข้า (เรียลไทม์)</h3>
+        <div id="adminOrdersContainer" class="space-y-3"></div>
+    </div>
+
+    <!-- รายการอาหารทั้งหมด -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm space-y-4">
+        <h3 class="font-bold text-sm">เมนูอาหารในระบบ</h3>
+        <div id="adminMenuList" class="space-y-2"></div>
+    </div>
+
+    <!-- Modal เพิ่มเมนู -->
+    <div id="addMenuModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-md rounded-2xl p-5 space-y-4">
+            <h3 class="font-bold">เพิ่มเมนูอาหารใหม่</h3>
+            <form onsubmit="saveMenuItem(event)" class="space-y-3">
+                <input type="text" id="menuName" required placeholder="ชื่อเมนู" class="w-full border p-2.5 rounded-xl text-sm">
+                <input type="number" id="menuPrice" required placeholder="ราคา" class="w-full border p-2.5 rounded-xl text-sm">
+                <input type="url" id="menuImage" placeholder="URL รูปภาพ" class="w-full border p-2.5 rounded-xl text-sm">
+                <button type="submit" class="w-full bg-orange-500 text-white p-2.5 rounded-xl font-bold">บันทึก</button>
+            </form>
+            <button onclick="closeAddMenuModal()" class="w-full bg-gray-100 p-2 rounded-xl text-xs">ปิด</button>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz-JnN-E2YAaQK83tsro_PK0yX7IxM98Oa9NXgJi9TClnEO1_qqI6BIQIT68DwNNYWE/exec";
+        let menuItems = JSON.parse(localStorage.getItem('restaurant_menu')) || [];
+        let orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
+
+        window.onload = function() {
+            renderAdminOrders();
+            renderMenuList();
+            setInterval(() => {
+                orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
+                renderAdminOrders();
+            }, 3000);
+        };
+
+        function renderAdminOrders() {
+            const container = document.getElementById('adminOrdersContainer');
+            container.innerHTML = orders.length === 0 ? '<p class="text-xs text-gray-400">ยังไม่มีออเดอร์</p>' : '';
+            orders.forEach(o => {
+                container.innerHTML += `<div class="p-3 border rounded-xl flex justify-between items-center text-xs">
+                    <div><b>โต๊ะ ${o.table}</b> - ${o.items.map(i=>i.name+' x'+i.qty).join(', ')} (฿${o.total})</div>
+                    <span class="text-orange-500 font-bold">${o.status}</span>
+                </div>`;
+            });
+        }
+
+        function renderMenuList() {
+            const container = document.getElementById('adminMenuList');
+            container.innerHTML = '';
+            menuItems.forEach(i => {
+                container.innerHTML += `<div class="flex justify-between items-center p-2 bg-gray-50 rounded-xl text-xs">
+                    <span>${i.name} - ฿${i.price}</span>
+                    <button onclick="deleteMenu('${i.id}')" class="text-red-500">ลบ</button>
+                </div>`;
+            });
+        }
+
+        function openAddMenuModal() { document.getElementById('addMenuModal').classList.remove('hidden'); }
+        function closeAddMenuModal() { document.getElementById('addMenuModal').classList.add('hidden'); }
+
+        function saveMenuItem(e) {
+            e.preventDefault();
+            const newItem = {
+                id: Date.now().toString(),
+                name: document.getElementById('menuName').value,
+                price: parseFloat(document.getElementById('menuPrice').value),
+                category: 'ทั่วไป',
+                image: document.getElementById('menuImage').value || 'https://placehold.co/100x100'
+            };
+            menuItems.push(newItem);
+            localStorage.setItem('restaurant_menu', JSON.stringify(menuItems));
+            renderMenuList();
+            closeAddMenuModal();
+        }
+
+        function deleteMenu(id) {
+            menuItems = menuItems.filter(i => i.id !== id);
+            localStorage.setItem('restaurant_menu', JSON.stringify(menuItems));
+            renderMenuList();
+        }
+    </script>
+</body>
+</html>
