@@ -3,107 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>แผงควบคุมเจ้าของร้าน</title>
+    <title>เมนูสั่งอาหาร</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap'); * { font-family: 'Kanit', sans-serif; }</style>
 </head>
-<body class="bg-gray-50 text-gray-800 min-h-screen p-4 max-w-4xl mx-auto space-y-6">
-    <div class="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
-        <div>
-            <h1 class="font-bold text-lg"><i class="fa-solid fa-store text-orange-500"></i> แผงควบคุมเจ้าของร้าน</h1>
-            <p class="text-xs text-gray-400">ระบบจัดการออเดอร์และเมนูอาหาร</p>
-        </div>
-        <div class="flex gap-2">
-            <a href="https://docs.google.com/spreadsheets/d/1oJMvQwIpAb9icpnFrqtRxJsRbuxiylB3LIZwVzgQHPA/edit" target="_blank" class="px-3 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-semibold">ดู Google Sheets</a>
-            <button onclick="openAddMenuModal()" class="px-3 py-2 bg-orange-500 text-white rounded-xl text-xs font-semibold">+ เพิ่มเมนู</button>
-        </div>
+<body class="bg-gray-50 text-gray-800 min-h-screen p-4 max-w-md mx-auto space-y-4">
+    <div class="bg-gradient-to-r from-orange-500 to-amber-500 text-white p-4 rounded-2xl shadow-md">
+        <h2 id="tableTitle" class="text-xl font-bold">โต๊ะที่ 1</h2>
+        <p class="text-xs text-orange-100">เลือกอาหารและกดยืนยันเพื่อสั่ง</p>
     </div>
 
-    <!-- รายการออเดอร์ -->
-    <div class="bg-white p-4 rounded-2xl shadow-sm space-y-4">
-        <h3 class="font-bold text-sm">รายการออเดอร์เข้า (เรียลไทม์)</h3>
-        <div id="adminOrdersContainer" class="space-y-3"></div>
-    </div>
+    <!-- เมนูอาหาร -->
+    <div id="menuContainer" class="space-y-3"></div>
 
-    <!-- รายการอาหารทั้งหมด -->
-    <div class="bg-white p-4 rounded-2xl shadow-sm space-y-4">
-        <h3 class="font-bold text-sm">เมนูอาหารในระบบ</h3>
-        <div id="adminMenuList" class="space-y-2"></div>
-    </div>
+    <!-- ปุ่มดูตะกร้า -->
+    <button onclick="submitOrder()" class="w-full bg-orange-500 hover:bg-orange-600 text-white p-3 rounded-xl font-bold shadow-lg">
+        ยืนยันการสั่งอาหาร
+    </button>
 
-    <!-- Modal เพิ่มเมนู -->
-    <div id="addMenuModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-        <div class="bg-white w-full max-w-md rounded-2xl p-5 space-y-4">
-            <h3 class="font-bold">เพิ่มเมนูอาหารใหม่</h3>
-            <form onsubmit="saveMenuItem(event)" class="space-y-3">
-                <input type="text" id="menuName" required placeholder="ชื่อเมนู" class="w-full border p-2.5 rounded-xl text-sm">
-                <input type="number" id="menuPrice" required placeholder="ราคา" class="w-full border p-2.5 rounded-xl text-sm">
-                <input type="url" id="menuImage" placeholder="URL รูปภาพ" class="w-full border p-2.5 rounded-xl text-sm">
-                <button type="submit" class="w-full bg-orange-500 text-white p-2.5 rounded-xl font-bold">บันทึก</button>
-            </form>
-            <button onclick="closeAddMenuModal()" class="w-full bg-gray-100 p-2 rounded-xl text-xs">ปิด</button>
-        </div>
+    <!-- Modal ขยายรูปภาพ -->
+    <div id="imageModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onclick="closeImageModal()">
+        <img id="modalImg" src="" class="max-w-full max-h-[80vh] rounded-2xl shadow-2xl">
     </div>
 
     <script>
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz-JnN-E2YAaQK83tsro_PK0yX7IxM98Oa9NXgJi9TClnEO1_qqI6BIQIT68DwNNYWE/exec";
-        let menuItems = JSON.parse(localStorage.getItem('restaurant_menu')) || [];
-        let orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
+        let tableNum = 1;
+        let menuItems = JSON.parse(localStorage.getItem('restaurant_menu')) || [
+            { id: "1", name: "ข้าวกะเพราหมูกรอบ", price: 60, image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=300" }
+        ];
+        let cart = [];
 
         window.onload = function() {
-            renderAdminOrders();
-            renderMenuList();
-            setInterval(() => {
-                orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
-                renderAdminOrders();
-            }, 3000);
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('table')) tableNum = params.get('table');
+            document.getElementById('tableTitle').innerText = `โต๊ะที่ ${tableNum}`;
+            renderMenu();
         };
 
-        function renderAdminOrders() {
-            const container = document.getElementById('adminOrdersContainer');
-            container.innerHTML = orders.length === 0 ? '<p class="text-xs text-gray-400">ยังไม่มีออเดอร์</p>' : '';
-            orders.forEach(o => {
-                container.innerHTML += `<div class="p-3 border rounded-xl flex justify-between items-center text-xs">
-                    <div><b>โต๊ะ ${o.table}</b> - ${o.items.map(i=>i.name+' x'+i.qty).join(', ')} (฿${o.total})</div>
-                    <span class="text-orange-500 font-bold">${o.status}</span>
-                </div>`;
-            });
-        }
-
-        function renderMenuList() {
-            const container = document.getElementById('adminMenuList');
+        function renderMenu() {
+            const container = document.getElementById('menuContainer');
             container.innerHTML = '';
-            menuItems.forEach(i => {
-                container.innerHTML += `<div class="flex justify-between items-center p-2 bg-gray-50 rounded-xl text-xs">
-                    <span>${i.name} - ฿${i.price}</span>
-                    <button onclick="deleteMenu('${i.id}')" class="text-red-500">ลบ</button>
-                </div>`;
+            menuItems.forEach(item => {
+                container.innerHTML += `
+                    <div class="bg-white p-3 rounded-2xl shadow-sm flex items-center justify-between border">
+                        <div class="flex items-center space-x-3">
+                            <img src="${item.image}" class="w-16 h-16 rounded-xl object-cover cursor-pointer hover:opacity-90 transition" onclick="openImageModal('${item.image}')">
+                            <div>
+                                <h4 class="font-bold text-sm">${item.name}</h4>
+                                <p class="text-xs text-orange-500 font-bold">฿${item.price}</p>
+                            </div>
+                        </div>
+                        <button onclick="addToCart('${item.id}')" class="bg-orange-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold">+ เพิ่ม</button>
+                    </div>`;
             });
         }
 
-        function openAddMenuModal() { document.getElementById('addMenuModal').classList.remove('hidden'); }
-        function closeAddMenuModal() { document.getElementById('addMenuModal').classList.add('hidden'); }
-
-        function saveMenuItem(e) {
-            e.preventDefault();
-            const newItem = {
-                id: Date.now().toString(),
-                name: document.getElementById('menuName').value,
-                price: parseFloat(document.getElementById('menuPrice').value),
-                category: 'ทั่วไป',
-                image: document.getElementById('menuImage').value || 'https://placehold.co/100x100'
-            };
-            menuItems.push(newItem);
-            localStorage.setItem('restaurant_menu', JSON.stringify(menuItems));
-            renderMenuList();
-            closeAddMenuModal();
+        function openImageModal(url) {
+            document.getElementById('modalImg').src = url;
+            document.getElementById('imageModal').classList.remove('hidden');
         }
 
-        function deleteMenu(id) {
-            menuItems = menuItems.filter(i => i.id !== id);
-            localStorage.setItem('restaurant_menu', JSON.stringify(menuItems));
-            renderMenuList();
+        function closeImageModal() {
+            document.getElementById('imageModal').classList.add('hidden');
+        }
+
+        function addToCart(id) {
+            const item = menuItems.find(m => m.id === id);
+            cart.push(item);
+            alert(`เพิ่ม ${item.name} ลงตะกร้าแล้ว`);
+        }
+
+        function submitOrder() {
+            if (cart.length === 0) {
+                alert('กรุณาเลือกอาหารก่อนครับ');
+                return;
+            }
+            const newOrder = {
+                id: Date.now().toString(),
+                table: tableNum,
+                items: cart.map(i => ({ name: i.name, price: i.price, qty: 1 })),
+                total: cart.reduce((sum, i) => sum + i.price, 0),
+                status: 'รอดำเนินการ',
+                timeStr: new Date().toLocaleTimeString()
+            };
+
+            let orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
+            orders.push(newOrder);
+            localStorage.setItem('restaurant_orders', JSON.stringify(orders));
+
+            // ส่งข้อมูลเข้า Google Sheets
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: newOrder.id,
+                    table: newOrder.table,
+                    items: newOrder.items.map(i => i.name).join(', '),
+                    total: newOrder.total,
+                    status: newOrder.status,
+                    timestamp: newOrder.timeStr
+                })
+            }).catch(err => console.log(err));
+
+            cart = [];
+            alert('ส่งออเดอร์สำเร็จ!');
         }
     </script>
 </body>
