@@ -3,107 +3,397 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>แผงควบคุมเจ้าของร้าน</title>
+    <title>ระบบจัดการร้านอาหาร - แผงควบคุมเจ้าของร้าน</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap'); * { font-family: 'Kanit', sans-serif; }</style>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap');
+        * { font-family: 'Kanit', sans-serif; }
+    </style>
 </head>
-<body class="bg-gray-50 text-gray-800 min-h-screen p-4 max-w-4xl mx-auto space-y-6">
-    <div class="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
+<body class="bg-gray-50 text-gray-800 min-h-screen">
+
+    <!-- Notification Toast for Admin -->
+    <div id="adminNotification" class="hidden fixed top-5 right-5 bg-orange-500 text-white px-5 py-3 rounded-2xl shadow-2xl z-50 flex items-center space-x-3 border-2 border-white animate-bounce">
+        <i class="fa-solid fa-bell text-xl"></i>
         <div>
-            <h1 class="font-bold text-lg"><i class="fa-solid fa-store text-orange-500"></i> แผงควบคุมเจ้าของร้าน</h1>
-            <p class="text-xs text-gray-400">ระบบจัดการออเดอร์และเมนูอาหาร</p>
-        </div>
-        <div class="flex gap-2">
-            <a href="https://docs.google.com/spreadsheets/d/1oJMvQwIpAb9icpnFrqtRxJsRbuxiylB3LIZwVzgQHPA/edit" target="_blank" class="px-3 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-semibold">ดู Google Sheets</a>
-            <button onclick="openAddMenuModal()" class="px-3 py-2 bg-orange-500 text-white rounded-xl text-xs font-semibold">+ เพิ่มเมนู</button>
+            <p class="font-bold text-sm">มีออเดอร์ใหม่เข้ามา!</p>
+            <p class="text-xs" id="notifDetail">มีรายการสั่งอาหารใหม่</p>
         </div>
     </div>
 
-    <!-- รายการออเดอร์ -->
-    <div class="bg-white p-4 rounded-2xl shadow-sm space-y-4">
-        <h3 class="font-bold text-sm">รายการออเดอร์เข้า (เรียลไทม์)</h3>
-        <div id="adminOrdersContainer" class="space-y-3"></div>
-    </div>
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-40">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-orange-500 text-white p-2 rounded-xl text-xl">
+                    <i class="fa-solid fa-utensils"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">แผงควบคุมเจ้าของร้าน</h1>
+                    <p class="text-xs text-gray-400">ระบบจัดการร้านอาหารออนไลน์</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="location.reload()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg transition flex items-center gap-1">
+                    <i class="fa-solid fa-rotate-right"></i> รีเฟรช
+                </button>
+            </div>
+        </div>
+    </header>
 
-    <!-- รายการอาหารทั้งหมด -->
-    <div class="bg-white p-4 rounded-2xl shadow-sm space-y-4">
-        <h3 class="font-bold text-sm">เมนูอาหารในระบบ</h3>
-        <div id="adminMenuList" class="space-y-2"></div>
-    </div>
+    <main class="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap justify-between items-center gap-3">
+            <div>
+                <h2 class="font-bold text-gray-800 text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-orange-500"></i> จัดการร้านอาหาร
+                </h2>
+                <p class="text-xs text-gray-400">จัดการคำสั่งซื้อ เมนูอาหาร และเปิดชีตหลังบ้าน</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="https://docs.google.com/spreadsheets/d/1oJMvQwIpAb9icpnFrqtRxJsRbuxiylB3LIZwVzgQHPA/edit" target="_blank" class="px-3 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-semibold rounded-xl transition flex items-center gap-1.5 border border-emerald-200">
+                    <i class="fa-solid fa-file-excel"></i> Google Sheets
+                </a>
+                <button onclick="openAddMenuModal()" class="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-xl transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-plus"></i> เพิ่มเมนูอาหาร
+                </button>
+                <button onclick="openTableModal()" class="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-xl transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-qrcode"></i> จัดการโต๊ะ & QR Code
+                </button>
+            </div>
+        </div>
 
-    <!-- Modal เพิ่มเมนู -->
-    <div id="addMenuModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- รายการสั่งอาหาร -->
+            <div class="md:col-span-2 space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping"></span>
+                        รายการสั่งอาหารเข้า (เรียลไทม์)
+                    </h3>
+                    <span id="orderCountBadge" class="bg-orange-100 text-orange-600 text-xs px-2.5 py-1 rounded-full font-semibold">0 รายการ</span>
+                </div>
+
+                <div class="flex space-x-2 text-xs">
+                    <button onclick="filterOrders('all')" id="filterAll" class="px-3 py-1.5 rounded-lg font-medium bg-slate-800 text-white">ทั้งหมด</button>
+                    <button onclick="filterOrders('pending')" id="filterPending" class="px-3 py-1.5 rounded-lg font-medium bg-white text-gray-600 border border-gray-200">รอดำเนินการ</button>
+                    <button onclick="filterOrders('cooking')" id="filterCooking" class="px-3 py-1.5 rounded-lg font-medium bg-white text-gray-600 border border-gray-200">กำลังทำอาหาร</button>
+                    <button onclick="filterOrders('completed')" id="filterCompleted" class="px-3 py-1.5 rounded-lg font-medium bg-white text-gray-600 border border-gray-200">เสร็จสิ้นแล้ว</button>
+                </div>
+
+                <div id="adminOrdersContainer" class="space-y-3"></div>
+            </div>
+
+            <!-- เมนู & โต๊ะ -->
+            <div class="space-y-6">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-gray-500"></i> รายการอาหารทั้งหมด
+                        </h3>
+                        <button onclick="openAddMenuModal()" class="text-xs text-orange-500 hover:underline font-semibold">+ เพิ่ม</button>
+                    </div>
+                    <div id="adminMenuList" class="space-y-2 max-h-80 overflow-y-auto pr-1"></div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-gray-800 text-sm mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-chair text-gray-500"></i> สถานะโต๊ะอาหาร
+                    </h3>
+                    <div id="adminTableGrid" class="grid grid-cols-2 gap-2"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modals -->
+    <div id="addMenuModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-md rounded-2xl p-5 space-y-4">
-            <h3 class="font-bold">เพิ่มเมนูอาหารใหม่</h3>
-            <form onsubmit="saveMenuItem(event)" class="space-y-3">
-                <input type="text" id="menuName" required placeholder="ชื่อเมนู" class="w-full border p-2.5 rounded-xl text-sm">
-                <input type="number" id="menuPrice" required placeholder="ราคา" class="w-full border p-2.5 rounded-xl text-sm">
-                <input type="url" id="menuImage" placeholder="URL รูปภาพ" class="w-full border p-2.5 rounded-xl text-sm">
-                <button type="submit" class="w-full bg-orange-500 text-white p-2.5 rounded-xl font-bold">บันทึก</button>
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 id="menuModalTitle" class="font-bold text-gray-800"><i class="fa-solid fa-utensils text-orange-500"></i> เพิ่มรายการอาหารใหม่</h3>
+                <button onclick="closeAddMenuModal()" class="text-gray-400"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="addMenuForm" onsubmit="saveMenuItem(event)" class="space-y-3">
+                <input type="hidden" id="editMenuId" value="">
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">ชื่อเมนูอาหาร</label>
+                    <input type="text" id="menuName" required class="w-full mt-1 border rounded-xl p-2.5 text-sm focus:outline-none focus:border-orange-500" placeholder="เช่น ข้าวกะเพราหมูกรอบ">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">ราคา (บาท)</label>
+                        <input type="number" id="menuPrice" required min="1" class="w-full mt-1 border rounded-xl p-2.5 text-sm focus:outline-none focus:border-orange-500" placeholder="60">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">หมวดหมู่</label>
+                        <select id="menuCategory" class="w-full mt-1 border rounded-xl p-2.5 text-sm focus:outline-none focus:border-orange-500">
+                            <option value="อาหารจานเดียว">อาหารจานเดียว</option>
+                            <option value="กับข้าว">กับข้าว</option>
+                            <option value="ทานเล่น">ทานเล่น</option>
+                            <option value="เครื่องดื่ม">เครื่องดื่ม</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">URL รูปภาพอาหาร</label>
+                    <input type="url" id="menuImage" class="w-full mt-1 border rounded-xl p-2.5 text-sm focus:outline-none focus:border-orange-500" placeholder="https://example.com/image.jpg">
+                </div>
+                <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl font-bold text-sm transition">
+                    บันทึกข้อมูล
+                </button>
             </form>
-            <button onclick="closeAddMenuModal()" class="w-full bg-gray-100 p-2 rounded-xl text-xs">ปิด</button>
+        </div>
+    </div>
+
+    <div id="tableModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="font-bold text-gray-800"><i class="fa-solid fa-qrcode text-orange-500"></i> จัดการโต๊ะ & QR Code</h3>
+                <button onclick="closeTableModal()" class="text-gray-400"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="flex justify-between items-center pt-2">
+                <span class="text-xs font-semibold text-gray-600">จำนวนโต๊ะทั้งหมด: <b id="tableCountText">3</b> โต๊ะ</span>
+                <div class="flex space-x-1">
+                    <button onclick="adjustTableCount(-1)" class="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-bold text-xs">- ลบโต๊ะ</button>
+                    <button onclick="adjustTableCount(1)" class="px-2.5 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold text-xs">+ เพิ่มโต๊ะ</button>
+                </div>
+            </div>
+            <div id="qrListContainer" class="grid grid-cols-2 gap-3 pt-2"></div>
         </div>
     </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz-JnN-E2YAaQK83tsro_PK0yX7IxM98Oa9NXgJi9TClnEO1_qqI6BIQIT68DwNNYWE/exec";
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz-JnN-E2YAaQK83tsro_PK0yX7IxM98Oa9NXgJi9TClnEO1_qqI6BIQIT68DwNNYWE/exec";
+        
         let menuItems = JSON.parse(localStorage.getItem('restaurant_menu')) || [];
+        let totalTables = parseInt(localStorage.getItem('restaurant_tables')) || 3;
         let orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
+        let previousOrderCount = orders.length;
+        let currentFilter = 'all';
 
         window.onload = function() {
-            renderAdminOrders();
             renderMenuList();
-            setInterval(() => {
-                orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
-                renderAdminOrders();
-            }, 3000);
+            renderAdminOrders();
+            renderTableGrid();
+            setInterval(checkNewOrders, 3000);
         };
+
+        function playSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.4);
+            } catch(e){}
+        }
+
+        function checkNewOrders() {
+            orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
+            if (orders.length > previousOrderCount) {
+                playSound();
+                const toast = document.getElementById('adminNotification');
+                toast.classList.remove('hidden');
+                setTimeout(() => toast.classList.add('hidden'), 4000);
+                previousOrderCount = orders.length;
+            }
+            renderAdminOrders();
+            renderTableGrid();
+        }
+
+        function filterOrders(status) {
+            currentFilter = status;
+            ['All', 'Pending', 'Cooking', 'Completed'].forEach(s => {
+                const btn = document.getElementById(`filter${s}`);
+                if (btn) {
+                    if (s.toLowerCase() === status) {
+                        btn.className = "px-3 py-1.5 rounded-lg font-medium bg-slate-800 text-white";
+                    } else {
+                        btn.className = "px-3 py-1.5 rounded-lg font-medium bg-white text-gray-600 border border-gray-200";
+                    }
+                }
+            });
+            renderAdminOrders();
+        }
 
         function renderAdminOrders() {
             const container = document.getElementById('adminOrdersContainer');
-            container.innerHTML = orders.length === 0 ? '<p class="text-xs text-gray-400">ยังไม่มีออเดอร์</p>' : '';
-            orders.forEach(o => {
-                container.innerHTML += `<div class="p-3 border rounded-xl flex justify-between items-center text-xs">
-                    <div><b>โต๊ะ ${o.table}</b> - ${o.items.map(i=>i.name+' x'+i.qty).join(', ')} (฿${o.total})</div>
-                    <span class="text-orange-500 font-bold">${o.status}</span>
-                </div>`;
+            container.innerHTML = '';
+            let filtered = currentFilter !== 'all' ? orders.filter(o => o.status === currentFilter) : orders;
+            document.getElementById('orderCountBadge').innerText = `${filtered.length} รายการ`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="bg-white p-8 rounded-2xl text-center text-gray-400 text-xs">ไม่มีรายการคำสั่งซื้อในหมวดนี้</div>`;
+                return;
+            }
+
+            filtered.sort((a,b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)).forEach(order => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-3";
+                
+                let statusBadge = `<span class="bg-amber-100 text-amber-700 text-[10px] font-bold px-2.5 py-1 rounded-full"><i class="fa-solid fa-hourglass"></i> รอดำเนินการ</span>`;
+                if (order.status === 'cooking') statusBadge = `<span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2.5 py-1 rounded-full"><i class="fa-solid fa-fire"></i> กำลังทำอาหาร</span>`;
+                if (order.status === 'completed') statusBadge = `<span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2.5 py-1 rounded-full"><i class="fa-solid fa-check"></i> เสร็จสิ้นแล้ว</span>`;
+
+                let itemsHtml = (order.items || []).map(i => `<div class="flex justify-between text-xs text-gray-700"><span><b>${i.name}</b> x${i.qty || 1}</span><span class="font-semibold">฿${(i.price || 0) * (i.qty || 1)}</span></div>`).join('');
+
+                let actionBtn = '';
+                if (order.status === 'pending') {
+                    actionBtn = `<button onclick="updateOrderStatus('${order.id}', 'cooking')" class="w-full py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-xl transition flex justify-center items-center gap-1"><i class="fa-solid fa-fire"></i> เริ่มทำอาหาร</button>`;
+                } else if (order.status === 'cooking') {
+                    actionBtn = `<button onclick="updateOrderStatus('${order.id}', 'completed')" class="w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition flex justify-center items-center gap-1"><i class="fa-solid fa-check"></i> กดเสร็จแล้ว</button>`;
+                }
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <div>
+                            <span class="font-extrabold text-sm bg-slate-900 text-white px-2 py-0.5 rounded-md">โต๊ะที่ ${order.table}</span>
+                            <span class="text-[10px] text-gray-400 ml-2">#${String(order.id).slice(-4)} • ${order.timeStr || ''}</span>
+                        </div>
+                        ${statusBadge}
+                    </div>
+                    <div class="space-y-1 bg-gray-50 p-2.5 rounded-xl">${itemsHtml}</div>
+                    <div class="flex justify-between items-center font-bold text-sm text-gray-800">
+                        <span>ราคารวม: <b class="text-orange-500">฿${order.total}</b></span>
+                    </div>
+                    ${actionBtn}
+                `;
+                container.appendChild(card);
             });
+        }
+
+        function updateOrderStatus(orderId, newStatus) {
+            const order = orders.find(o => String(o.id) === String(orderId));
+            if (order) {
+                order.status = newStatus;
+                localStorage.setItem('restaurant_orders', JSON.stringify(orders));
+                renderAdminOrders();
+                renderTableGrid();
+            }
+        }
+
+        function renderTableGrid() {
+            const container = document.getElementById('adminTableGrid');
+            container.innerHTML = '';
+            for (let i = 1; i <= totalTables; i++) {
+                const hasActive = orders.some(o => Number(o.table) === i && o.status !== 'completed');
+                const div = document.createElement('div');
+                div.className = `p-3 rounded-xl border text-center ${hasActive ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-gray-50 border-gray-100 text-gray-600'}`;
+                div.innerHTML = `<p class="font-extrabold text-xs">T-${i}</p><p class="text-[10px] mt-0.5">${hasActive ? 'มีออเดอร์' : 'ว่าง'}</p>`;
+                container.appendChild(div);
+            }
+        }
+
+        function openTableModal() { document.getElementById('tableModal').classList.remove('hidden'); renderQRCodes(); }
+        function closeTableModal() { document.getElementById('tableModal').classList.add('hidden'); }
+
+        function adjustTableCount(delta) {
+            totalTables = Math.max(1, totalTables + delta);
+            localStorage.setItem('restaurant_tables', totalTables);
+            document.getElementById('tableCountText').innerText = totalTables;
+            renderTableGrid();
+            renderQRCodes();
+        }
+
+        function renderQRCodes() {
+            const container = document.getElementById('qrListContainer');
+            container.innerHTML = '';
+            let baseUrl = window.location.origin + window.location.pathname.replace('admin.html', 'index.html');
+
+            for (let i = 1; i <= totalTables; i++) {
+                const tableUrl = `${baseUrl}?table=${i}`;
+                const qrImgUrl = `https://quickchart.io/qr?text=${encodeURIComponent(tableUrl)}&size=200`;
+
+                const card = document.createElement('div');
+                card.className = "bg-gray-50 border p-3 rounded-xl text-center space-y-2 flex flex-col items-center";
+                card.innerHTML = `
+                    <span class="font-bold text-xs text-gray-700">โต๊ะที่ ${i}</span>
+                    <img src="${qrImgUrl}" class="w-28 h-28 border bg-white p-1 rounded-lg">
+                    <a href="${tableUrl}" target="_blank" class="text-[10px] text-orange-500 font-semibold hover:underline">เปิดหน้าโต๊ะ ${i}</a>
+                `;
+                container.appendChild(card);
+            }
         }
 
         function renderMenuList() {
             const container = document.getElementById('adminMenuList');
             container.innerHTML = '';
-            menuItems.forEach(i => {
-                container.innerHTML += `<div class="flex justify-between items-center p-2 bg-gray-50 rounded-xl text-xs">
-                    <span>${i.name} - ฿${i.price}</span>
-                    <button onclick="deleteMenu('${i.id}')" class="text-red-500">ลบ</button>
-                </div>`;
+            if (menuItems.length === 0) {
+                container.innerHTML = `<p class="text-xs text-gray-400 text-center py-4">ยังไม่มีเมนูอาหาร</p>`;
+                return;
+            }
+            menuItems.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "flex items-center justify-between p-2 bg-gray-50 rounded-xl hover:bg-gray-100 transition pr-3";
+                div.innerHTML = `
+                    <div class="flex items-center space-x-3 overflow-hidden">
+                        <img src="${item.image}" class="w-10 h-10 rounded-lg object-cover flex-shrink-0" onerror="this.src='https://placehold.co/100x100?text=Food'">
+                        <div class="truncate">
+                            <h4 class="font-bold text-xs text-gray-800 truncate">${item.name}</h4>
+                            <p class="text-[10px] text-gray-500">฿${item.price} • ${item.category || 'ทั่วไป'}</p>
+                        </div>
+                    </div>
+                    <div class="flex space-x-1 flex-shrink-0">
+                        <button onclick="editMenuItem('${item.id}')" class="p-2 text-gray-400 hover:text-orange-500 transition"><i class="fa-solid fa-pen-to-square text-sm"></i></button>
+                        <button onclick="deleteMenuItem('${item.id}')" class="p-2 text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-trash text-sm"></i></button>
+                    </div>
+                `;
+                container.appendChild(div);
             });
         }
 
-        function openAddMenuModal() { document.getElementById('addMenuModal').classList.remove('hidden'); }
+        function openAddMenuModal() {
+            document.getElementById('editMenuId').value = "";
+            document.getElementById('menuModalTitle').innerHTML = `<i class="fa-solid fa-utensils text-orange-500"></i> เพิ่มรายการอาหารใหม่`;
+            document.getElementById('addMenuForm').reset();
+            document.getElementById('addMenuModal').classList.remove('hidden');
+        }
         function closeAddMenuModal() { document.getElementById('addMenuModal').classList.add('hidden'); }
+
+        function editMenuItem(id) {
+            const item = menuItems.find(m => String(m.id) === String(id));
+            if (!item) return;
+            document.getElementById('editMenuId').value = item.id;
+            document.getElementById('menuName').value = item.name;
+            document.getElementById('menuPrice').value = item.price;
+            document.getElementById('menuCategory').value = item.category || 'อาหารจานเดียว';
+            document.getElementById('menuImage').value = item.image || "";
+            document.getElementById('menuModalTitle').innerHTML = `<i class="fa-solid fa-pen-to-square text-orange-500"></i> แก้ไขรายการอาหาร`;
+            document.getElementById('addMenuModal').classList.remove('hidden');
+        }
 
         function saveMenuItem(e) {
             e.preventDefault();
-            const newItem = {
-                id: Date.now().toString(),
-                name: document.getElementById('menuName').value,
-                price: parseFloat(document.getElementById('menuPrice').value),
-                category: 'ทั่วไป',
-                image: document.getElementById('menuImage').value || 'https://placehold.co/100x100'
-            };
-            menuItems.push(newItem);
+            const editId = document.getElementById('editMenuId').value;
+            const name = document.getElementById('menuName').value;
+            const price = parseFloat(document.getElementById('menuPrice').value);
+            const category = document.getElementById('menuCategory').value;
+            const image = document.getElementById('menuImage').value || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300';
+
+            if (editId) {
+                const index = menuItems.findIndex(m => String(m.id) === String(editId));
+                if (index !== -1) menuItems[index] = { id: editId, name, price, category, image };
+            } else {
+                menuItems.push({ id: Date.now().toString(), name, price, category, image });
+            }
+
             localStorage.setItem('restaurant_menu', JSON.stringify(menuItems));
             renderMenuList();
             closeAddMenuModal();
         }
 
-        function deleteMenu(id) {
-            menuItems = menuItems.filter(i => i.id !== id);
-            localStorage.setItem('restaurant_menu', JSON.stringify(menuItems));
-            renderMenuList();
+        function deleteMenuItem(id) {
+            if (confirm('ยืนยันลบเมนูนี้?')) {
+                menuItems = menuItems.filter(item => String(item.id) !== String(id));
+                localStorage.setItem('restaurant_menu', JSON.stringify(menuItems));
+                renderMenuList();
+            }
         }
     </script>
 </body>
