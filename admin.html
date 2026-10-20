@@ -43,7 +43,7 @@
                         <i class="fa-solid fa-store"></i> ฝั่งเจ้าของร้าน
                     </button>
                     <a href="index.html" target="_blank" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-600 hover:bg-gray-100 transition flex items-center gap-1">
-                        <i class="fa-solid fa-border-all"></i> ฝั่งลูกค้า (สแกนสั่ง)
+                        <i class="fa-solid fa-border-all"></i> ฝั่งลูกค้า (สั่งอาหาร)
                     </a>
                 </div>
             </div>
@@ -56,17 +56,14 @@
                 <h2 class="font-bold text-gray-800 text-lg flex items-center gap-2">
                     <i class="fa-solid fa-chart-pie text-orange-500"></i> แผงควบคุมเจ้าของร้าน
                 </h2>
-                <p class="text-xs text-gray-400">จัดการคำสั่งซื้อ เมนูอาหาร โต๊ะอาหาร และการเชื่อมต่อข้อมูลหลังบ้าน</p>
+                <p class="text-xs text-gray-400">จัดการคำสั่งซื้อ เมนูอาหาร และการเชื่อมต่อข้อมูลหลังบ้าน</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <a href="https://docs.google.com/spreadsheets/d/1oJMvQwIpAb9icpnFrqtRxJsRbuxiylB3LIZwVzgQHPA/edit" target="_blank" class="px-3 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-semibold rounded-xl transition flex items-center gap-1.5 border border-emerald-200">
-                    <i class="fa-solid fa-file-excel"></i> ตั้งค่า Google Sheets
+                    <i class="fa-solid fa-file-excel"></i> Google Sheets
                 </a>
                 <button onclick="openAddMenuModal()" class="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-xl transition flex items-center gap-1.5">
                     <i class="fa-solid fa-plus"></i> เพิ่มเมนูอาหาร
-                </button>
-                <button onclick="openTableModal()" class="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-xl transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-qrcode"></i> จัดการโต๊ะ & QR Code
                 </button>
             </div>
         </div>
@@ -83,7 +80,7 @@
 
                 <div class="flex space-x-2 text-xs">
                     <button onclick="filterOrders('all')" id="filterAll" class="px-3 py-1.5 rounded-lg font-medium bg-slate-800 text-white">ทั้งหมด</button>
-                    <button onclick="filterOrders('pending')" id="filterPending" class="px-3 py-1.5 rounded-lg font-medium bg-white text-gray-600 border border-gray-200">กำลังรอดำเนินการ</button>
+                    <button onclick="filterOrders('pending')" id="filterPending" class="px-3 py-1.5 rounded-lg font-medium bg-white text-gray-600 border border-gray-200">รอดำเนินการ</button>
                     <button onclick="filterOrders('cooking')" id="filterCooking" class="px-3 py-1.5 rounded-lg font-medium bg-white text-gray-600 border border-gray-200">กำลังทำอาหาร</button>
                     <button onclick="filterOrders('completed')" id="filterCompleted" class="px-3 py-1.5 rounded-lg font-medium bg-white text-gray-600 border border-gray-200">เสร็จสิ้นแล้ว</button>
                 </div>
@@ -100,13 +97,6 @@
                         <button onclick="openAddMenuModal()" class="text-xs text-orange-500 hover:underline font-semibold">+ เพิ่ม</button>
                     </div>
                     <div id="adminMenuList" class="space-y-2 max-h-80 overflow-y-auto pr-1"></div>
-                </div>
-
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                    <h3 class="font-bold text-gray-800 text-sm mb-3 flex items-center gap-2">
-                        <i class="fa-solid fa-chair text-gray-500"></i> สถานะโต๊ะอาหาร
-                    </h3>
-                    <div id="adminTableGrid" class="grid grid-cols-2 gap-2"></div>
                 </div>
             </div>
         </div>
@@ -151,23 +141,6 @@
         </div>
     </div>
 
-    <div id="tableModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-lg rounded-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center border-b pb-2">
-                <h3 class="font-bold text-gray-800"><i class="fa-solid fa-qrcode text-orange-500"></i> จัดการโต๊ะ & QR Code</h3>
-                <button onclick="closeTableModal()" class="text-gray-400"><i class="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            <div class="flex justify-between items-center pt-2">
-                <span class="text-xs font-semibold text-gray-600">จำนวนโต๊ะทั้งหมด: <b id="tableCountText">6</b> โต๊ะ</span>
-                <div class="flex space-x-1">
-                    <button onclick="adjustTableCount(-1)" class="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-bold text-xs">- ลบโต๊ะ</button>
-                    <button onclick="adjustTableCount(1)" class="px-2.5 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold text-xs">+ เพิ่มโต๊ะ</button>
-                </div>
-            </div>
-            <div id="qrListContainer" class="grid grid-cols-2 gap-3 pt-2"></div>
-        </div>
-    </div>
-
     <!-- Image Zoom Modal -->
     <div id="imageModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick="closeImageModal()">
         <img id="modalImg" src="" class="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain">
@@ -177,7 +150,6 @@
         let menuItems = JSON.parse(localStorage.getItem('restaurant_menu')) || [
             { id: "1", name: "ข้าวกะเพราหมูกรอบ", price: 60, category: "อาหารจานเดียว", image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=300" }
         ];
-        let totalTables = parseInt(localStorage.getItem('restaurant_tables')) || 6;
         let orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
         let previousOrderCount = orders.length;
         let currentFilter = 'all';
@@ -185,7 +157,6 @@
         window.onload = function() {
             renderMenuList();
             renderAdminOrders();
-            renderTableGrid();
             setInterval(checkNewOrders, 3000);
         };
 
@@ -195,7 +166,6 @@
             setTimeout(() => {
                 orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
                 renderAdminOrders();
-                renderTableGrid();
                 renderMenuList();
                 icon.classList.remove('spin-anim');
             }, 600);
@@ -227,7 +197,6 @@
                 previousOrderCount = orders.length;
             }
             renderAdminOrders();
-            renderTableGrid();
         }
 
         function filterOrders(status) {
@@ -301,50 +270,6 @@
                 order.status = newStatus;
                 localStorage.setItem('restaurant_orders', JSON.stringify(orders));
                 renderAdminOrders();
-                renderTableGrid();
-            }
-        }
-
-        function renderTableGrid() {
-            const container = document.getElementById('adminTableGrid');
-            container.innerHTML = '';
-            for (let i = 1; i <= totalTables; i++) {
-                const hasActive = orders.some(o => Number(o.table) === i && o.status !== 'completed');
-                const div = document.createElement('div');
-                div.className = `p-3 rounded-xl border text-center ${hasActive ? 'bg-amber-50 border-amber-300 text-amber-800 font-bold' : 'bg-gray-50 border-gray-100 text-gray-600'}`;
-                div.innerHTML = `<p class="text-xs">T-${i}</p><p class="text-[10px] mt-0.5">${hasActive ? 'มีออเดอร์' : 'ว่าง'}</p>`;
-                container.appendChild(div);
-            }
-        }
-
-        function openTableModal() { document.getElementById('tableModal').classList.remove('hidden'); renderQRCodes(); }
-        function closeTableModal() { document.getElementById('tableModal').classList.add('hidden'); }
-
-        function adjustTableCount(delta) {
-            totalTables = Math.max(1, totalTables + delta);
-            localStorage.setItem('restaurant_tables', totalTables);
-            document.getElementById('tableCountText').innerText = totalTables;
-            renderTableGrid();
-            renderQRCodes();
-        }
-
-        function renderQRCodes() {
-            const container = document.getElementById('qrListContainer');
-            container.innerHTML = '';
-            let baseUrl = window.location.origin + window.location.pathname.replace('admin.html', 'index.html');
-
-            for (let i = 1; i <= totalTables; i++) {
-                const tableUrl = `${baseUrl}?table=${i}`;
-                const qrImgUrl = `https://quickchart.io/qr?text=${encodeURIComponent(tableUrl)}&size=200`;
-
-                const card = document.createElement('div');
-                card.className = "bg-gray-50 border p-3 rounded-xl text-center space-y-2 flex flex-col items-center";
-                card.innerHTML = `
-                    <span class="font-bold text-xs text-gray-700">โต๊ะที่ ${i}</span>
-                    <img src="${qrImgUrl}" class="w-28 h-28 border bg-white p-1 rounded-lg">
-                    <a href="${tableUrl}" target="_blank" class="text-[10px] text-orange-500 font-semibold hover:underline">เปิดหน้าโต๊ะ ${i}</a>
-                `;
-                container.appendChild(card);
             }
         }
 
