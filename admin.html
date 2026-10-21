@@ -147,211 +147,117 @@
     </div>
 
     <script>
-        let menuItems = JSON.parse(localStorage.getItem('restaurant_menu')) || [
-            { id: "1", name: "ข้าวกะเพราหมูกรอบ", price: 60, category: "อาหารจานเดียว", image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=300" }
-        ];
-        let orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
-        let previousOrderCount = orders.length;
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz-JnN-E2YAaQK83tsro_PK0yX7IxM98Oa9NXgJi9TClnEO_1qqI6BIQIT68DwNNYWE/exec";
+        let menuItems = [];
+        let orders = [];
+        let previousOrderIds = new Set();
         let currentFilter = 'all';
-
-        window.onload = function() {
-            renderMenuList();
-            renderAdminOrders();
-            setInterval(checkNewOrders, 3000);
-        };
-
-        function triggerRefresh() {
-            const icon = document.getElementById('refreshIcon');
-            icon.classList.add('spin-anim');
-            setTimeout(() => {
-                orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
-                renderAdminOrders();
-                renderMenuList();
-                icon.classList.remove('spin-anim');
-            }, 600);
+        let isFirstLoad = true;
+        function apiGet(action) {
+            return new Promise((resolve, reject) => {
+                const callbackName = 'gasCallback_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+                const script = document.createElement('script');
+                const timer = setTimeout(() => { cleanup(); reject(new Error('หมดเวลารอข้อมูลจาก Google Sheets')); }, 15000);
+                function cleanup() { clearTimeout(timer); try { delete window[callbackName]; } catch (_) { window[callbackName] = undefined; } if (script.parentNode) script.parentNode.removeChild(script); }
+                window[callbackName] = data => { cleanup(); resolve(data); };
+                script.onerror = () => { cleanup(); reject(new Error('เชื่อมต่อ Google Apps Script ไม่สำเร็จ')); };
+                script.src = GOOGLE_SCRIPT_URL + '?action=' + encodeURIComponent(action) + '&callback=' + callbackName + '&_=' + Date.now();
+                document.body.appendChild(script);
+            });
         }
-
-        function playSound() {
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-                osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15);
-                gain.gain.setValueAtTime(0.3, ctx.currentTime);
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.4);
-            } catch(e){}
+        async function apiPost(data) {
+            await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(data) });
+            await new Promise(resolve => setTimeout(resolve, 900));
         }
-
-        function checkNewOrders() {
-            orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
-            if (orders.length > previousOrderCount) {
-                playSound();
-                const toast = document.getElementById('adminNotification');
-                toast.classList.remove('hidden');
-                setTimeout(() => toast.classList.add('hidden'), 4000);
-                previousOrderCount = orders.length;
+        function normalizeItems(items) {
+            if (typeof items === 'string') { try { items = JSON.parse(items); } catch (_) { return []; } }
+            if (!Array.isArray(items)) return [];
+            return items.map(i => ({ ...i, name: i.name || 'รายการอาหาร', price: Number(i.price) || 0, qty: Number(i.qty ?? i.quantity) || 1 }));
+        }
+        async function loadSharedData(showError = false) {
+            const data = await apiGet('init');
+            if (!data || data.result !== 'success') throw new Error(data?.message || 'อ่านข้อมูลไม่สำเร็จ');
+            menuItems = Array.isArray(data.menu) ? data.menu : [];
+            orders = (Array.isArray(data.orders) ? data.orders : []).map(o => ({ ...o, items: normalizeItems(o.items), timeStr: o.timeStr || (o.timestamp ? new Date(o.timestamp).toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'}) : '') }));
+            const ids = new Set(orders.map(o => String(o.id)));
+            if (!isFirstLoad) {
+                const newOrders = [...ids].filter(id => !previousOrderIds.has(id));
+                if (newOrders.length) { playSound(); const toast = document.getElementById('adminNotification'); document.getElementById('notifDetail').innerText = `มีออเดอร์ใหม่ ${newOrders.length} รายการ`; toast.classList.remove('hidden'); setTimeout(() => toast.classList.add('hidden'), 4000); }
             }
-            renderAdminOrders();
+            previousOrderIds = ids; isFirstLoad = false;
+            renderMenuList(); renderAdminOrders();
         }
-
+        window.onload = async function() {
+            try { await loadSharedData(); }
+            catch (err) { console.error(err); document.getElementById('adminOrdersContainer').innerHTML = `<div class="bg-white p-8 rounded-2xl text-center text-red-500 text-sm">โหลดข้อมูลไม่ได้: ${escapeHtml(err.message)}<br>ตรวจสอบ URL และการ Deploy ของ Apps Script</div>`; }
+            setInterval(() => loadSharedData().catch(err => console.warn(err)), 8000);
+        };
+        async function triggerRefresh() {
+            const icon = document.getElementById('refreshIcon'); icon.classList.add('spin-anim');
+            try { await loadSharedData(); } catch (err) { alert('รีเฟรชไม่สำเร็จ: ' + err.message); }
+            finally { icon.classList.remove('spin-anim'); }
+        }
+        function playSound() { try { const ctx = new (window.AudioContext || window.webkitAudioContext)(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(587.33, ctx.currentTime); osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15); gain.gain.setValueAtTime(0.3, ctx.currentTime); osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.4); } catch(e) {} }
+        function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
         function filterOrders(status) {
             currentFilter = status;
-            ['all', 'pending', 'cooking', 'completed'].forEach(s => {
-                const btn = document.getElementById(`filter${s.charAt(0).toUpperCase() + s.slice(1)}`);
-                if (btn) {
-                    if (s === status) {
-                        btn.className = "px-3 py-1.5 rounded-lg font-medium bg-slate-800 text-white";
-                    } else {
-                        btn.className = "px-3 py-1.5 rounded-lg font-medium bg-white text-gray-600 border border-gray-200";
-                    }
-                }
-            });
+            ['all', 'pending', 'cooking', 'completed'].forEach(s => { const btn = document.getElementById(`filter${s.charAt(0).toUpperCase() + s.slice(1)}`); if (btn) btn.className = s === status ? 'px-3 py-1.5 rounded-lg font-medium bg-slate-800 text-white' : 'px-3 py-1.5 rounded-lg font-medium bg-white text-gray-600 border border-gray-200'; });
             renderAdminOrders();
         }
-
         function renderAdminOrders() {
-            const container = document.getElementById('adminOrdersContainer');
-            container.innerHTML = '';
-            let filtered = currentFilter !== 'all' ? orders.filter(o => o.status === currentFilter) : orders;
+            const container = document.getElementById('adminOrdersContainer'); container.innerHTML = '';
+            const filtered = (currentFilter !== 'all' ? orders.filter(o => o.status === currentFilter) : orders).slice().sort((a,b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
             document.getElementById('orderCountBadge').innerText = `${filtered.length} รายการ`;
-
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="bg-white p-12 rounded-2xl text-center text-gray-400 text-xs border border-dashed border-gray-200 flex flex-col items-center justify-center space-y-2">
-                        <i class="fa-solid fa-utensils text-3xl text-gray-300"></i>
-                        <p>ยังไม่มีรายการสั่งอาหารเข้ามาในขณะนี้</p>
-                    </div>`;
-                return;
-            }
-
-            filtered.sort((a,b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)).forEach(order => {
-                const card = document.createElement('div');
-                card.className = "bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-3";
-                
-                let statusBadge = `<span class="bg-amber-100 text-amber-700 text-[10px] font-bold px-2.5 py-1 rounded-full"><i class="fa-solid fa-hourglass"></i> รอดำเนินการ</span>`;
-                if (order.status === 'cooking') statusBadge = `<span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2.5 py-1 rounded-full"><i class="fa-solid fa-fire"></i> กำลังทำอาหาร</span>`;
-                if (order.status === 'completed') statusBadge = `<span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2.5 py-1 rounded-full"><i class="fa-solid fa-check"></i> เสร็จสิ้นแล้ว</span>`;
-
-                let itemsHtml = (order.items || []).map(i => `<div class="flex justify-between text-xs text-gray-700"><span><b>${i.name}</b> x${i.qty || 1}</span><span class="font-semibold">฿${(i.price || 0) * (i.qty || 1)}</span></div>`).join('');
-
+            if (!filtered.length) { container.innerHTML = '<div class="bg-white p-12 rounded-2xl text-center text-gray-400 text-xs border border-dashed border-gray-200 flex flex-col items-center justify-center space-y-2"><i class="fa-solid fa-utensils text-3xl text-gray-300"></i><p>ยังไม่มีรายการสั่งอาหารเข้ามาในขณะนี้</p></div>'; return; }
+            filtered.forEach(order => {
+                const card = document.createElement('div'); card.className = 'bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-3';
+                let statusBadge = '<span class="bg-amber-100 text-amber-700 text-[10px] font-bold px-2.5 py-1 rounded-full"><i class="fa-solid fa-hourglass"></i> รอดำเนินการ</span>';
+                if (order.status === 'cooking') statusBadge = '<span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2.5 py-1 rounded-full"><i class="fa-solid fa-fire"></i> กำลังทำอาหาร</span>';
+                if (order.status === 'completed') statusBadge = '<span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2.5 py-1 rounded-full"><i class="fa-solid fa-check"></i> เสร็จสิ้นแล้ว</span>';
+                const itemsHtml = normalizeItems(order.items).map(i => `<div class="flex justify-between text-xs text-gray-700"><span><b>${escapeHtml(i.name)}</b> x${i.qty}</span><span class="font-semibold">฿${i.price * i.qty}</span></div>`).join('');
                 let actionBtn = '';
-                if (order.status === 'pending') {
-                    actionBtn = `<button onclick="updateOrderStatus('${order.id}', 'cooking')" class="w-full py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-xl transition flex justify-center items-center gap-1"><i class="fa-solid fa-fire"></i> เริ่มทำอาหาร</button>`;
-                } else if (order.status === 'cooking') {
-                    actionBtn = `<button onclick="updateOrderStatus('${order.id}', 'completed')" class="w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition flex justify-center items-center gap-1"><i class="fa-solid fa-check"></i> กดเสร็จแล้ว</button>`;
-                }
-
-                card.innerHTML = `
-                    <div class="flex justify-between items-center border-b pb-2">
-                        <div>
-                            <span class="font-extrabold text-sm bg-slate-900 text-white px-2 py-0.5 rounded-md">โต๊ะที่ ${order.table}</span>
-                            <span class="text-[10px] text-gray-400 ml-2">#${String(order.id).slice(-4)} • ${order.timeStr || ''}</span>
-                        </div>
-                        ${statusBadge}
-                    </div>
-                    <div class="space-y-1 bg-gray-50 p-2.5 rounded-xl">${itemsHtml}</div>
-                    <div class="flex justify-between items-center font-bold text-sm text-gray-800">
-                        <span>ราคารวม: <b class="text-orange-500">฿${order.total}</b></span>
-                    </div>
-                    ${actionBtn}
-                `;
+                if (order.status === 'pending') actionBtn = `<button onclick="updateOrderStatus('${String(order.id).replace(/'/g,'')}', 'cooking')" class="w-full py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-xl transition flex justify-center items-center gap-1"><i class="fa-solid fa-fire"></i> เริ่มทำอาหาร</button>`;
+                else if (order.status === 'cooking') actionBtn = `<button onclick="updateOrderStatus('${String(order.id).replace(/'/g,'')}', 'completed')" class="w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition flex justify-center items-center gap-1"><i class="fa-solid fa-check"></i> กดเสร็จแล้ว</button>`;
+                card.innerHTML = `<div class="flex justify-between items-center border-b pb-2"><div><span class="font-extrabold text-sm bg-slate-900 text-white px-2 py-0.5 rounded-md">โต๊ะที่ ${escapeHtml(order.table)}</span><span class="text-[10px] text-gray-400 ml-2">#${escapeHtml(String(order.id).slice(-4))} • ${escapeHtml(order.timeStr || '')}</span></div>${statusBadge}</div><div class="space-y-1 bg-gray-50 p-2.5 rounded-xl">${itemsHtml}</div><div class="flex justify-between items-center font-bold text-sm text-gray-800"><span>ราคารวม: <b class="text-orange-500">฿${Number(order.total) || 0}</b></span></div>${actionBtn}`;
                 container.appendChild(card);
             });
         }
-
-        function updateOrderStatus(orderId, newStatus) {
-            const order = orders.find(o => String(o.id) === String(orderId));
-            if (order) {
-                order.status = newStatus;
-                localStorage.setItem('restaurant_orders', JSON.stringify(orders));
-                renderAdminOrders();
-            }
+        async function updateOrderStatus(orderId, newStatus) {
+            try {
+                await apiPost({ action: 'updateStatus', id: String(orderId), status: newStatus });
+                await loadSharedData();
+                const updated = orders.find(o => String(o.id) === String(orderId));
+                if (!updated || updated.status !== newStatus) throw new Error('ยังยืนยันการเปลี่ยนสถานะจาก Google Sheets ไม่ได้');
+            } catch (err) { alert('อัปเดตสถานะไม่สำเร็จ: ' + err.message); }
         }
-
         function renderMenuList() {
-            const container = document.getElementById('adminMenuList');
-            container.innerHTML = '';
-            if (menuItems.length === 0) {
-                container.innerHTML = `<p class="text-xs text-gray-400 text-center py-4">ยังไม่มีเมนูอาหาร</p>`;
-                return;
-            }
+            const container = document.getElementById('adminMenuList'); container.innerHTML = '';
+            if (!menuItems.length) { container.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">ยังไม่มีเมนูอาหาร</p>'; return; }
             menuItems.forEach(item => {
-                const div = document.createElement('div');
-                div.className = "flex items-center justify-between p-2 bg-gray-50 rounded-xl hover:bg-gray-100 transition pr-3";
-                div.innerHTML = `
-                    <div class="flex items-center space-x-3 overflow-hidden">
-                        <img src="${item.image}" class="w-10 h-10 rounded-lg object-cover flex-shrink-0 cursor-pointer" onclick="openImageModal('${item.image}')" onerror="this.src='https://placehold.co/100x100?text=Food'">
-                        <div class="truncate">
-                            <h4 class="font-bold text-xs text-gray-800 truncate">${item.name}</h4>
-                            <p class="text-[10px] text-gray-500">฿${item.price} • ${item.category || 'ทั่วไป'}</p>
-                        </div>
-                    </div>
-                    <div class="flex space-x-1 flex-shrink-0">
-                        <button onclick="editMenuItem('${item.id}')" class="p-2 text-gray-400 hover:text-orange-500 transition"><i class="fa-solid fa-pen-to-square text-sm"></i></button>
-                        <button onclick="deleteMenuItem('${item.id}')" class="p-2 text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-trash text-sm"></i></button>
-                    </div>
-                `;
+                const div = document.createElement('div'); div.className = 'flex items-center justify-between p-2 bg-gray-50 rounded-xl hover:bg-gray-100 transition pr-3';
+                div.innerHTML = `<div class="flex items-center space-x-3 overflow-hidden"><img src="${item.image || ''}" class="w-10 h-10 rounded-lg object-cover flex-shrink-0 cursor-pointer" onclick="openImageModal('${item.image || ''}')" onerror="this.src='https://placehold.co/100x100?text=Food'"><div class="truncate"><h4 class="font-bold text-xs text-gray-800 truncate">${escapeHtml(item.name)}</h4><p class="text-[10px] text-gray-500">฿${Number(item.price)||0} • ${escapeHtml(item.category || 'ทั่วไป')}</p></div></div><div class="flex space-x-1 flex-shrink-0"><button onclick="editMenuItem('${String(item.id).replace(/'/g,'')}')" class="p-2 text-gray-400 hover:text-orange-500 transition"><i class="fa-solid fa-pen-to-square text-sm"></i></button><button onclick="deleteMenuItem('${String(item.id).replace(/'/g,'')}')" class="p-2 text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-trash text-sm"></i></button></div>`;
                 container.appendChild(div);
             });
         }
-
-        function openAddMenuModal() {
-            document.getElementById('editMenuId').value = "";
-            document.getElementById('menuModalTitle').innerHTML = `<i class="fa-solid fa-utensils text-orange-500"></i> เพิ่มรายการอาหารใหม่`;
-            document.getElementById('addMenuForm').reset();
-            document.getElementById('addMenuModal').classList.remove('hidden');
-        }
+        function openAddMenuModal() { document.getElementById('editMenuId').value = ''; document.getElementById('menuModalTitle').innerHTML = '<i class="fa-solid fa-utensils text-orange-500"></i> เพิ่มรายการอาหารใหม่'; document.getElementById('addMenuForm').reset(); document.getElementById('addMenuModal').classList.remove('hidden'); }
         function closeAddMenuModal() { document.getElementById('addMenuModal').classList.add('hidden'); }
-
-        function editMenuItem(id) {
-            const item = menuItems.find(m => String(m.id) === String(id));
-            if (!item) return;
-            document.getElementById('editMenuId').value = item.id;
-            document.getElementById('menuName').value = item.name;
-            document.getElementById('menuPrice').value = item.price;
-            document.getElementById('menuCategory').value = item.category || 'อาหารจานเดียว';
-            document.getElementById('menuImage').value = item.image || "";
-            document.getElementById('menuModalTitle').innerHTML = `<i class="fa-solid fa-pen-to-square text-orange-500"></i> แก้ไขรายการอาหาร`;
-            document.getElementById('addMenuModal').classList.remove('hidden');
-        }
-
-        function saveMenuItem(e) {
+        function editMenuItem(id) { const item = menuItems.find(m => String(m.id) === String(id)); if (!item) return; document.getElementById('editMenuId').value = item.id; document.getElementById('menuName').value = item.name; document.getElementById('menuPrice').value = item.price; document.getElementById('menuCategory').value = item.category || 'อาหารจานเดียว'; document.getElementById('menuImage').value = item.image || ''; document.getElementById('menuModalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-orange-500"></i> แก้ไขรายการอาหาร'; document.getElementById('addMenuModal').classList.remove('hidden'); }
+        async function saveMenuItem(e) {
             e.preventDefault();
             const editId = document.getElementById('editMenuId').value;
-            const name = document.getElementById('menuName').value;
-            const price = parseFloat(document.getElementById('menuPrice').value);
-            const category = document.getElementById('menuCategory').value;
-            const image = document.getElementById('menuImage').value || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300';
-
-            if (editId) {
-                const index = menuItems.findIndex(m => String(m.id) === String(editId));
-                if (index !== -1) menuItems[index] = { id: editId, name, price, category, image };
-            } else {
-                menuItems.push({ id: Date.now().toString(), name, price, category, image });
-            }
-
-            localStorage.setItem('restaurant_menu', JSON.stringify(menuItems));
-            renderMenuList();
-            closeAddMenuModal();
+            const item = { id: editId || Date.now().toString(), name: document.getElementById('menuName').value.trim(), price: Number(document.getElementById('menuPrice').value), category: document.getElementById('menuCategory').value, image: document.getElementById('menuImage').value.trim() || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300' };
+            if (!item.name || item.price <= 0) { alert('กรุณากรอกชื่อเมนูและราคาที่ถูกต้อง'); return; }
+            const updated = menuItems.slice(); const index = updated.findIndex(m => String(m.id) === String(editId)); if (index >= 0) updated[index] = item; else updated.push(item);
+            try { await apiPost({ action: 'updateMenu', menu: updated }); await loadSharedData(); if (!menuItems.some(m => String(m.id) === String(item.id) && m.name === item.name)) throw new Error('ยังไม่พบเมนูที่บันทึกใน Google Sheets'); closeAddMenuModal(); }
+            catch (err) { alert('บันทึกเมนูไม่สำเร็จ: ' + err.message); }
         }
-
-        function deleteMenuItem(id) {
-            if (confirm('ยืนยันลบเมนูนี้?')) {
-                menuItems = menuItems.filter(item => String(item.id) !== String(id));
-                localStorage.setItem('restaurant_menu', JSON.stringify(menuItems));
-                renderMenuList();
-            }
+        async function deleteMenuItem(id) {
+            if (!confirm('ยืนยันลบเมนูนี้?')) return;
+            const updated = menuItems.filter(item => String(item.id) !== String(id));
+            try { await apiPost({ action: 'updateMenu', menu: updated }); await loadSharedData(); if (menuItems.some(m => String(m.id) === String(id))) throw new Error('เมนูยังอยู่ใน Google Sheets'); }
+            catch (err) { alert('ลบเมนูไม่สำเร็จ: ' + err.message); }
         }
-
-        function openImageModal(url) {
-            document.getElementById('modalImg').src = url;
-            document.getElementById('imageModal').classList.remove('hidden');
-        }
+        function openImageModal(url) { document.getElementById('modalImg').src = url; document.getElementById('imageModal').classList.remove('hidden'); }
         function closeImageModal() { document.getElementById('imageModal').classList.add('hidden'); }
     </script>
 </body>
