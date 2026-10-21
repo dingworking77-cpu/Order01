@@ -21,7 +21,7 @@
                 <div class="bg-orange-500 text-white p-2 rounded-xl text-xl"><i class="fa-solid fa-utensils"></i></div>
                 <div>
                     <h1 class="font-bold text-lg leading-tight">ระบบสั่งอาหาร</h1>
-                    <p class="text-xs text-gray-400">ร้านอาหารออนไลน์</p>
+                    <p class="text-xs text-gray-400">สำหรับลูกค้า</p>
                 </div>
             </div>
             <div>
@@ -36,8 +36,8 @@
         <div class="bg-gradient-to-r from-orange-500 to-amber-500 text-white p-5 rounded-2xl shadow-md flex justify-between items-center">
             <div>
                 <span class="bg-white/20 text-xs px-2.5 py-1 rounded-full font-medium">สั่งอาหารผ่านมือถือ</span>
-                <h2 class="text-xl font-extrabold mt-1">กรุณาระบุหมายเลขโต๊ะของคุณ</h2>
-                <p class="text-xs text-orange-100 mt-0.5">เลือกเมนูอาหารด้านล่างและกดยืนยันเพื่อสั่ง</p>
+                <h2 class="text-xl font-extrabold mt-1">เลือกเมนูอาหารด้านล่างและหมายเลขโต๊ะของท่าน</h2>
+                <p class="text-xs text-orange-100 mt-0.5">จากนั้นกดยืนยัน เพื่อสั่งอาหาร</p>
             </div>
         </div>
 
@@ -244,12 +244,11 @@
         }
         function renderCustomerOrders() {
             const container = document.getElementById('customerOrdersList'); container.innerHTML = '';
-            const mine = orders.filter(o => myOrderIds.includes(String(o.id)));
-            if (!mine.length) { container.innerHTML = '<div class="bg-white p-8 rounded-2xl text-center text-gray-400 text-xs">ยังไม่พบรายการสั่งอาหารจากอุปกรณ์นี้</div>'; return; }
+            // กรองเฉพาะออเดอร์ที่เป็นของฉัน และสถานะยังไม่ถูก completed (หรือถ้า completed ไปแล้ว จะหายไปจากรายการที่สั่งแล้วฝั่งลูกค้าทันทีเพื่อเคลียร์โต๊ะ)
+            const mine = orders.filter(o => myOrderIds.includes(String(o.id)) && o.status !== 'completed');
+            if (!mine.length) { container.innerHTML = '<div class="bg-white p-8 rounded-2xl text-center text-gray-400 text-xs">ยังไม่พบรายการสั่งอาหารที่กำลังดำเนินการ</div>'; return; }
             mine.slice().sort((a,b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)).forEach(order => {
                 let statusBadge = '<span class="text-amber-600 text-xs font-bold"><i class="fa-solid fa-hourglass"></i> รอดำเนินการ</span>';
-                if (order.status === 'cooking') statusBadge = '<span class="text-blue-600 text-xs font-bold"><i class="fa-solid fa-fire"></i> กำลังทำอาหาร</span>';
-                if (order.status === 'completed') statusBadge = '<span class="text-emerald-600 text-xs font-bold"><i class="fa-solid fa-circle-check"></i> ทำเสร็จแล้ว</span>';
                 const items = normalizeItems(order.items);
                 const itemsHtml = items.map(i => `<div class="flex justify-between text-xs text-gray-700"><span>${escapeHtml(i.name)} x${i.qty}</span><span>฿${i.price * i.qty}</span></div>`).join('');
                 container.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3"><div class="flex justify-between items-center border-b pb-2 text-xs"><span class="font-extrabold bg-slate-900 text-white px-2 py-0.5 rounded">โต๊ะที่ ${escapeHtml(order.table)}</span>${statusBadge}</div><div class="space-y-1">${itemsHtml}</div><div class="flex justify-between items-center pt-2 border-t text-xs font-bold"><span>รวม: <b class="text-orange-500">฿${Number(order.total) || 0}</b></span></div></div>`;
