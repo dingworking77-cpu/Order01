@@ -21,7 +21,6 @@
                 <div class="bg-orange-500 text-white p-2 rounded-xl text-xl"><i class="fa-solid fa-utensils"></i></div>
                 <div>
                     <h1 class="font-bold text-lg leading-tight">ระบบสั่งอาหาร</h1>
-                    <p class="text-xs text-gray-400">สำหรับลูกค้า</p>
                 </div>
             </div>
             <div>
@@ -36,8 +35,7 @@
         <div class="bg-gradient-to-r from-orange-500 to-amber-500 text-white p-5 rounded-2xl shadow-md flex justify-between items-center">
             <div>
                 <span class="bg-white/20 text-xs px-2.5 py-1 rounded-full font-medium">สั่งอาหารผ่านมือถือ</span>
-                <h2 class="text-xl font-extrabold mt-1">เลือกเมนูอาหารด้านล่างและหมายเลขโต๊ะของท่าน</h2>
-                <p class="text-xs text-orange-100 mt-0.5">จากนั้นกดยืนยัน เพื่อสั่งอาหาร</p>
+                <h2 class="text-base md:text-lg font-extrabold mt-1">เลือกเมนูอาหารที่ท่านต้องการ และระบุหมายเลขโต๊ะของท่าน กดยืนยันเพื่อสั้งอาหาร</h2>
             </div>
         </div>
 
@@ -244,7 +242,6 @@
         }
         function renderCustomerOrders() {
             const container = document.getElementById('customerOrdersList'); container.innerHTML = '';
-            // กรองเฉพาะออเดอร์ที่เป็นของฉัน และสถานะยังไม่ถูก completed (หรือถ้า completed ไปแล้ว จะหายไปจากรายการที่สั่งแล้วฝั่งลูกค้าทันทีเพื่อเคลียร์โต๊ะ)
             const mine = orders.filter(o => myOrderIds.includes(String(o.id)) && o.status !== 'completed');
             if (!mine.length) { container.innerHTML = '<div class="bg-white p-8 rounded-2xl text-center text-gray-400 text-xs">ยังไม่พบรายการสั่งอาหารที่กำลังดำเนินการ</div>'; return; }
             mine.slice().sort((a,b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)).forEach(order => {
